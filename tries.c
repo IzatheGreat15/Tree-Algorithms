@@ -67,15 +67,14 @@ int isPrefix(triePtr node){
 }
 
 void delete(triePtr *root, char word[], int letter){
-    if(letter == strlen(word) + 1){
+    if(letter == strlen(word) + 1 || (*root) == NULL){
         return;
     }
     
     int index = getIndex(word[letter]);
-    int next = letter + 1;
-    // triePtr *address = (index >= 0 && index < CHILDREN_SIZE) ? &(*root)->children[index] : NULL;
+
     // get to the last character
-    delete(&(*root)->children[index], word, next);
+    delete(&(*root)->children[index], word, letter + 1);
 
     triePtr *trav = root, temp = *trav;
     // check if the letter is the end of the word
