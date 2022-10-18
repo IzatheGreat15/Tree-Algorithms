@@ -1,135 +1,156 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 #include <time.h>
+#include <limits.h>
 
 #define MAX_LEVEL 5
+
 typedef struct node{
-    int data;             // contains the actual key value
-    int level;            // contains the current level of the node
-    struct node **prev;   // array of pointers to previous nodes
-    struct node **next;   // array of pointers to next nodes
+    int data, level;
+    struct node **next;
 }*Node;
 
 typedef struct{
-    Node head;       // head pointer
-    int maxLevel;    // contains the maximum level for all nodes
+    Node head;
+    int max_level;
 }Skiplist;
 
-/**
- * @brief Create a Node object
- * 
- * @param data actual key value
- * @param level_size size of the array of levels
- * @return Node return a pointer to a node
- */
-Node createNode(int data, int level_size){
-    /* create a new node */
+Node createNewNode(int data, int level_size){
     Node newNode = (Node)calloc(1, sizeof(struct node));
 
-    /* pass the data and level, and create array of pointers */
     newNode->data = data;
     newNode->level = level_size;
-    // newNode->prev = (Node*)calloc(newNode->level, sizeof(Node));
-    newNode->next = (Node*)calloc(newNode->level, sizeof(Node));
+    newNode->next = NULL;
+    if(level_size > 0)
+        newNode->next = (Node*)calloc(level_size, sizeof(Node));
 
     return newNode;
 }
 
-/**
- * @brief initialize an empty skiplist
- * 
- * @param list 
- */
-void initializeList(Skiplist *list){
-    /* create the first node if the list (negative infinity) */
-    list->head = createNode(INT_MIN, list->maxLevel);
+void initList(Skiplist *L){
+    /* create the first node of the list (-INF) */
+    L->head = createNewNode(INT_MIN, L->max_level);
 
-    /* create the last node of the list (positive infinity) */
-    Node last = createNode(INT_MAX, list->maxLevel);
-    /**
-     * next pointers of head => last node
-     * prev pointers of last => head
-     */
-    int x;
-    for(x = 0; x < list->head->level; x++){
-        list->head->next[x] = last;
-        // last->prev[x] = list->head;
+    /* create the last node of the list (+INF) */
+    Node temp =  createNewNode(INT_MAX, 0);
+
+    /* point all pointers of the first node to the last node */
+    for(int x = 0; x < L->head->level; x++){
+        L->head->next[x] = temp;
     }
 }
 
-/**
- * @brief flip a coin
- * 
- * @return int 1 => head; 0 => tail
- */
 int coinFlip(){
     return rand() % 2;
 }
 
-/**
- * @brief inserting a new node to the skiplist
- * 
- * @param head Head node
- * @param key actual key value to insert
- * @param level optional
- */
-void insertNode(Node head, int key, int level){
-    Node trav = head;
+// top-down approach - pointer to node
+void insertNode(Node L, int data){
+    /* get the level using coin flip */
+    int level_size;
+    for(level_size = 1; coinFlip() != 0 && level_size <= MAX_LEVEL; level_size++){}
 
-    // if(level < 0)
-    //     return;
-
-    /* traverse to the right level */
-    for(level = trav->level - 1; key < trav->next[level]->data && level > 0; level--){
-        /* no duplicates */
-        if(key == trav->next[level]->data)
-            return;
-
-        /* move trav to next checkpoint */
-        if(key > trav->next[level - 1]->data)
-            trav = trav->next[level - 1];
-    }
-    // if(key < trav->next[level]->data){
-    //     insertNode(trav, key, level - 1);
-    // }else if(key > trav->next[level]->data){
-    //     insertNode(trav->next[level], key, level);
-    // }
-    
-    /* determine level size of new node using coin flip */
-    int level_size = 1, coin;
-    do{
-        coin = coinFlip();
-        level_size += coin;
-    }while(coin && level_size < MAX_LEVEL);
-
-    Node newNode = createNode(key, level_size);
-    /* insert node */
+    Node temp = createNewNode(data, level_size);
+    Node trav = NULL;
     int x;
-    for(x = 0; x < level_size; x++){
-        if(x == trav->level)
-            trav = trav->prev[x - 1];
 
-        newNode->next[x] = trav->next[x];
-        newNode->prev[x] = newNode->next[x]->prev[x];
-        newNode->next[x]->prev[x] = newNode;
-        trav->next[x] = newNode;
+    /* traverse by level */
+    for(x = temp->level - 1, trav = L; x >= 0; x--){
+        /* traverse by node */
+        /* skip nodes as necessary */
+        for(; temp->data > trav->next[x]->data; trav = trav->next[x]){}
+
+        /* adjust pointers */
+        temp->next[x] = trav->next[x];
+        trav->next[x] = temp;
     }
 }
 
-Node searchNode(Node head, int key){
-    Node foundNode = NULL;
+// top-down approach - pointer to pointer
+void insertNodev1(Node L, int data){
+    /* get the level using coin flip */
+    int level_size;
+    for(level_size = 1; coinFlip() != 0 && level_size <= MAX_LEVEL; level_size++){}
     
+    Node temp = createNewNode(data, level_size);
+    Node *trav = NULL;
+    int x;
 
-    return foundNode;
+    /* traverse by level */
+    for(x = temp->level - 1, trav = &(L->next[x]); x >= 0; x--, trav--){
+        /* traverse by node */
+        /* skip nodes as necessary */
+        for(; temp->data > (*trav)->data; trav = &(*trav)->next[x]){}
+
+        temp->next[x] = (*trav);
+        (*trav) = temp;
+    }
+}
+
+/**
+ * @brief search for a node in the skip list
+ * 
+ * @param L head pointer
+ * @param data key to find
+ * @return int level of the node, otherwise -1
+ */
+int searchNode(Node L, int data){
+    Node trav;
+    int x;
+    /* traverse by level */
+    for(x = L->level - 1, trav = L; x >= 0 && data != trav->next[x]->data; x--){
+        /* traverse by node */
+        /* skip nodes as necessary */
+        for(; data > trav->next[x]->data; trav = trav->next[x]){}
+    }
+    return x;
+}
+
+void deleteNode(Node L, int data){
+    /* find the correct position of the node */
+    int level = searchNode(L, data);
+
+    if(level == -1){
+        printf("Node is not in the skiplist\n");
+        return;
+    }
+
+    Node trav, temp;
+    int x;
+    for(x = level, trav = L; x >= 0; x--){
+        for(; data > trav->next[x]->data; trav = trav->next[x]){}
+
+        temp = trav->next[x];
+        trav->next[x] = temp->next[x];
+    }
+}
+
+void displayList(Skiplist l){
+	printf("\n===============================================================================");
+	printf("\nList:");
+	
+	Node trav;
+	int x;
+	for(trav = l.head->next[0]; trav->next != NULL; trav = trav->next[0]){
+		printf("\nTrav: %x Data: %d Level: %d ", trav, trav->data, trav->level);
+		if(trav->next != NULL){
+			for(x = 0; x <= trav->level; x++){
+				printf("\n\tnext[%d]: %x ", x, trav->next[x]);
+			}
+			printf("\n");
+		}else{
+			printf("%x ", trav->next);
+		}
+	}
+	printf("===============================================================================");
 }
 
 void main(){
-    Skiplist list = { NULL, MAX_LEVEL };
-
+    Skiplist list = {NULL, MAX_LEVEL};
     srand(time(NULL));
 
-    initializeList(&list);
-    insertNode(list.head, 56, list.maxLevel - 1);
-    insertNode(list.head, 60, list.maxLevel - 1);
+    initList(&list);
+    insertNodev1(list.head, 56);
+    insertNodev1(list.head, 60);
+    displayList(list);
 }
