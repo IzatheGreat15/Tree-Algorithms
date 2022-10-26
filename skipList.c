@@ -145,12 +145,19 @@ void displayList(Skiplist l){
 	printf("===============================================================================");
 }
 
+void populateList(Node L){
+    int num_of_nodes = rand() % 10 + 1;
+
+    for(int x = 0; x < num_of_nodes; x++){
+        insertNodev1(L, rand());
+    }
+}
+
 void main(){
     Skiplist list = {NULL, MAX_LEVEL};
     srand(time(NULL));
 
     initList(&list);
-    insertNodev1(list.head, 56);
-    insertNodev1(list.head, 60);
+    populateList(list.head);
     displayList(list);
 }
